@@ -2,12 +2,15 @@ package iscas.kafka.data.open.platform.netty.core;
 
 import com.alibaba.fastjson.JSONObject;
 import io.netty.channel.ChannelHandlerContext;
+import iscas.kafka.data.open.platform.netty.bean.DbResponse;
 import iscas.kafka.data.open.platform.netty.bean.ServerRequest;
 import iscas.kafka.data.open.platform.netty.conf.KafkaConfig;
 import iscas.kafka.data.open.platform.netty.content.ConsumerDataCount;
 import iscas.kafka.data.open.platform.netty.content.RunChannelContent;
 import iscas.kafka.data.open.platform.netty.bean.Response;
 import iscas.kafka.data.open.platform.netty.bean.User;
+import iscas.kafka.data.open.platform.netty.db.UserDB;
+import iscas.kafka.data.open.platform.netty.db.impl.UserImpl;
 import iscas.kafka.data.open.platform.netty.server.KafkaNettyServerHandler;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -16,26 +19,41 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.log4j.Logger;
 
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Properties;
+import java.util.*;
 
 public class KafkaConsumerDataSendThread extends Thread{
-    private static final Logger logger = Logger.getLogger(KafkaConsumerDataSendThread.class);
 
+    private static final Logger logger = Logger.getLogger(KafkaConsumerDataSendThread.class);
+    // 用户信息校验
+    private static UserDB userDB;
     private String TOPIC;
     private static Properties kafkaProps;
     private ChannelHandlerContext ctx;
     private ServerRequest request;
     private String channelId;
     private User user;
-
+    private Timer timer;
     public KafkaConsumerDataSendThread(ChannelHandlerContext ctx, ServerRequest request,String channelId, User user){
+        this.userDB = new UserImpl();
         this.user = user;
         this.request = request;
         this.ctx = ctx;
         this.channelId = channelId;
         this.TOPIC = user.getTopic();
+        this.timer = new Timer();
         kafkaInit();
+        // 定时检测权限
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                DbResponse dbResponse = userDB.userCheckout(user);
+                if(!dbResponse.getCheckoutResult()){
+                    // 已经没有权限在消费数据了
+                    System.out.println("权限已关闭或者数据发生修改： "+user);
+                    RunChannelContent.channelMap.remove(channelId);
+                }
+            }
+        },1000,10000);
     }
 
     private void kafkaInit() {
@@ -97,8 +115,13 @@ public class KafkaConsumerDataSendThread extends Thread{
                 // 通道已关闭，不在发送数据
                 logger.info(Thread.currentThread().getName()+" [ "+channelId+" ] 通道关闭，不在发送数据!!");
                 logger.info(Thread.currentThread().getName() +" server send to "+channelId+"： >>>>>> 总数据量： "+index);
+                ConsumerDataCount.countMap.remove(user.getName()+"-->"+user.getTopic()+"->"+user.getUsedPartition());
+                timer.cancel();
+                ctx.channel().close();
                 break;
             }
+            // 权限关闭后停止发送数据
+
             // 消费数据
             ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofMillis(100));  // 100 消费者拉取数据的频率
             StringBuilder line = new StringBuilder();

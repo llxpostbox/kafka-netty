@@ -14,20 +14,19 @@ public class UserImpl implements UserDB {
 
     @Override
     public DbResponse userCheckout(User user) {
-        System.out.println(user.toString());
         // 返回对象
         DbResponse dbResponse = new DbResponse();
         // 数据库连接
         Connection conn = null;
-        PreparedStatement ps = null;
+        PreparedStatement ps;
         // 查询
         try {
             // 创建连接
             conn = DBUtil.getConnection();
             // sql
-            String sql = "SELECT * FROM t_kafka_cuser cuser "
-                    + "LEFT JOIN t_kafka_topic ctpoic ON cuser.topicId = ctpoic.id "
-                    + "HAVING cuser.`name`=? AND cuser.`password`=? AND topic=?";
+            String sql = "SELECT * FROM t_user_topic_relevance "
+                    + "WHERE userId = (SELECT id FROM t_kafka_cuser WHERE name=? AND `password`=? AND delstatus=1 AND isactive=1) "
+                    + "AND topicId = (SELECT id FROM t_kafka_topic WHERE topic=? AND delstatus=1)";
             ps = conn.prepareStatement(sql);
             // 参数组装
             ps.setString(1,user.getName());

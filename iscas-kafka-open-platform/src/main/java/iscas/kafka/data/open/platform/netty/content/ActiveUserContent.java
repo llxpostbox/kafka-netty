@@ -106,7 +106,6 @@ public class ActiveUserContent {
             }
         }catch (Exception e){e.printStackTrace();}finally {
             LockContent.LEADER_VOTE_LOCK.unlock();
-
         }
     }
 }

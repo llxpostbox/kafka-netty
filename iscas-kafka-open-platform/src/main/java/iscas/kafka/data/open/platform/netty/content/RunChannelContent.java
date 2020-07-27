@@ -8,5 +8,5 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RunChannelContent {
     // 运行的通道
-    public static Map<String,Boolean> channelMap = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String,Boolean> channelMap = new ConcurrentHashMap<>();
 }
