@@ -24,7 +24,11 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
+<<<<<<< HEAD
             <version>4.1.42</version>
+=======
+            <version>4.1.42.Final</version>
+>>>>>>> f46d1cfb53040bd6c1e3e824759f0d464438c84c
         </dependency>
         <dependency>
             <groupId>com.alibaba</groupId>
